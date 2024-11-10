@@ -1,0 +1,8 @@
+aws:
+  region: ${AWS_REGION:us-east-1}
+  accessKeyId: ${AWS_ACCESS_KEY_ID:local}
+  secretAccessKey: ${AWS_SECRET_ACCESS_KEY:local}
+  dynamo:
+    uri: ${AWS_DYNAMO_URI:http://dockerhost:8000}
+  sqs:
+    uri: ${AWS_SQS_URI:http://dockerhost:9324}

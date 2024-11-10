@@ -1,0 +1,67 @@
+image:
+  name: veiculos
+  repository: "icarodamiani/fiap-revenda-veiculos"
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+replicaCount: 1
+imagePullSecrets: [ ]
+nameOverride: "veiculos"
+fullnameOverride: "veiculos"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: "/actuator/health"
+    alb.ingress.kubernetes.io/healthcheck-port: '8080'
+  hosts:
+    - host:
+      paths:
+        - path: /veiculos/
+          pathType: Prefix
+          portName: http
+
+resources: { }
+podAnnotations: { }
+podSecurityContext: { }
+securityContext: { }
+
+autoscaling:
+  enabled: false
+  minReplicas: 3
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: { }
+
+tolerations: [ ]
+
+affinity: { }
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {
+    "eks.amazonaws.com/role-arn": arn:aws:iam::769233459262:role/aws-node
+  }
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+env:
+  - name: OIDC_PROVIDER_ISSUER
+    value: https://issuer
+  - name: AWS_REGION
+    value: us-east-1
+

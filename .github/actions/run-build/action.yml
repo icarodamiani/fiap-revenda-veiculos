@@ -1,0 +1,40 @@
+name: 'Maven Tests'
+description: 'Runs maven build on the targeted project'
+inputs:
+  GITHUB_USERNAME:
+    description: 'Repository username'
+    required: true
+  GITHUB_TOKEN:
+    description: 'Repository password'
+    required: true
+  MAVEN_REPO:
+    description: 'Maven repository location'
+    required: false
+    default: '.m2/repository'
+  MAVEN_CLI_OPTS:
+    description: 'Maven-cli command line options'
+    required: false
+    default: '-s .m2/settings.xml'
+  MAVEN_OPTS:
+    description: 'Maven command line options'
+    required: false
+    default: '-Dmaven.repo.local=.m2/repository'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ${{ inputs.MAVEN_REPO }}
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Build
+      shell: bash
+      env:
+        GH_USERNAME: ${{ inputs.GITHUB_USERNAME }}
+        GH_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+      run: |
+        ./mvnw ${{ inputs.MAVEN_CLI_OPTS }} ${{ inputs.MAVEN_OPTS }} clean install -U -Dmaven.test.skip=true
+

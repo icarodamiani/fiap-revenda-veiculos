@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: fiap-revenda-veiculos
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_PROVIDER_ISSUER:http://keycloak/realms/fiap}
+  jackson:
+    serialization:
+      FAIL_ON_EMPTY_BEANS: false
+
+aws:
+  region: us-east-1
+  sqs:
+    numberOfMessages: 5
+    waitTimeMessage: 10
+    visibilityTimeOut: 30
+    pessoaExclusaoDados:
+      queue: pessoa_exclusao_dados_queue
+      delay: 1000
+      poolSize: 1
+    veiculosConfirmarVenda:
+      queue: veiculos_confirmar_venda_queue
+      delay: 1000
+      poolSize: 1
+
+management:
+  health:
+    probes:
+      enabled: true
+  endpoint:
+    loggers:
+      enabled: true
+    health:
+      probes:
+        enabled: true
+      show-details: "ALWAYS"
+  endpoints:
+    web:
+      exposure:
+        include: "*"

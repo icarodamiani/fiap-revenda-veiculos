@@ -1,0 +1,109 @@
+name: CI/CD Pipeline
+run-name: Deploy Market ${{ github.event.inputs.market }} Environment ${{ github.event.inputs.environment }} by ${{ github.actor}}
+
+on:
+  workflow_dispatch:
+    inputs:
+      oidc_provider_issuer:
+        type: string
+        required: true
+        description: 'Oidc provider issuer uri:'
+      tag:
+        type: string
+        required: true
+        description: 'Version to deploy:'
+
+env:
+  REGION: "us-east-1"
+
+permissions: 
+  id-token: write # Token to request an OpenID Connect token. required for requesting the JWT
+  contents: write # Repository contents, commits, branches, downloads, releases, and merges.
+  packages: write
+
+jobs:
+  build:
+    environment:
+      name: dev
+    runs-on: ubuntu-latest
+    container:
+      image: openjdk:17.0.1-jdk-slim
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '17'
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - uses: ./.github/actions/run-build
+
+      - name: Archive Production Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar_veiculos
+          path: target/*.jar
+          retention-days: 1
+
+  publish:
+    name: Publish & Deploy
+    needs: [build]
+    environment:  dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: configure aws credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.REGION }}
+          output-credentials: true
+     
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: jar_veiculos
+          path: target/
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_SECRET }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Building Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Multistage.Dockerfile
+          load: false
+          push: true
+          tags: icarodamiani/fiap-revenda-veiculos:${{ inputs.tag }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Deploy Helm
+        uses: bitovi/github-actions-deploy-eks-helm@v1.2.10
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+          aws-region: ${{ env.REGION }}
+          cluster-name: fiap-revenda
+          config-files: chart/veiculos/profiles/values.yaml
+          chart-path: chart/veiculos/
+          namespace: dev
+          values: env[0].value=${{ inputs.oidc_provider_issuer }}
+          name: veiculos
+          version: ${{ inputs.tag }}
